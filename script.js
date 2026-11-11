@@ -2,22 +2,28 @@
 /* =========================================
    GURI VISUALS
    Booking Portal — JavaScript
-   ========================================= */
+   Theme: Espresso Editorial
+========================================= */
 
 /* YOUR SETTINGS */
-const WHATSAPP_NUMBER = "91XXXXXXXXXX"; 
-// Replace X with your 10-digit WhatsApp number.
-// Example: 919876543210
 
-const ADMIN_PASSWORD = "Guri@123";
-// Change this demo password.
+const WHATSAPP_NUMBER = "916239750615";
+const ADMIN_PASSWORD = "Gurivisuals@2008";
 
 /* STORAGE */
+
 const STORAGE_KEY = "guriVisualsBookings";
 
-let bookings = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+let bookings = [];
+
+try {
+  bookings = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+} catch (error) {
+  bookings = [];
+}
 
 /* HELPERS */
+
 function saveBookings() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
 }
@@ -37,6 +43,7 @@ function formatDate(date) {
 }
 
 /* BOOKING FORM */
+
 const bookingForm = document.getElementById("bookingForm");
 
 if (bookingForm) {
@@ -105,17 +112,14 @@ Please contact me regarding availability and final pricing.
 
     alert("Your booking request has been saved! WhatsApp will open next.");
 
-    if (!WHATSAPP_NUMBER.includes("X")) {
-      window.open(whatsappURL, "_blank");
-    } else {
-      alert("Please add your WhatsApp number in script.js to enable WhatsApp booking.");
-    }
+    window.open(whatsappURL, "_blank");
 
     this.reset();
   });
 }
 
-/* SERVICE CARD BOOKING BUTTONS */
+/* SERVICE CARD BUTTONS */
+
 document.querySelectorAll(".choose-service").forEach(button => {
   button.addEventListener("click", function () {
     const card = this.closest(".service-card");
@@ -142,6 +146,7 @@ document.querySelectorAll(".choose-service").forEach(button => {
 });
 
 /* ADMIN MODAL */
+
 const adminModal = document.getElementById("adminModal");
 const adminLogin = document.getElementById("adminLogin");
 const adminDashboard = document.getElementById("adminDashboard");
@@ -175,6 +180,7 @@ if (adminModal) {
 }
 
 /* ADMIN LOGIN */
+
 const loginForm = document.getElementById("adminLoginForm");
 
 if (loginForm) {
@@ -197,6 +203,7 @@ if (loginForm) {
 }
 
 /* ADMIN LOGOUT */
+
 const logoutButton = document.getElementById("adminLogout");
 
 if (logoutButton) {
@@ -206,7 +213,8 @@ if (logoutButton) {
   });
 }
 
-/* DASHBOARD */
+/* ADMIN DASHBOARD */
+
 function renderDashboard() {
   const totalElement = document.getElementById("totalBookings");
   const pendingElement = document.getElementById("pendingBookings");
@@ -222,12 +230,12 @@ function renderDashboard() {
 
   if (!listElement) return;
 
+  listElement.innerHTML = "";
+
   if (bookings.length === 0) {
-    listElement.innerHTML = "<p>No bookings received yet.</p>";
+    listElement.textContent = "No bookings received yet.";
     return;
   }
-
-  listElement.innerHTML = "";
 
   [...bookings].reverse().forEach(booking => {
     const item = document.createElement("div");
@@ -235,6 +243,7 @@ function renderDashboard() {
 
     const heading = document.createElement("h4");
     heading.textContent = booking.name;
+    item.appendChild(heading);
 
     const fields = [
       `Service: ${booking.service}`,
@@ -248,8 +257,6 @@ function renderDashboard() {
       `Status: ${booking.status}`
     ];
 
-    item.appendChild(heading);
-
     fields.forEach(field => {
       const p = document.createElement("p");
       p.textContent = field;
@@ -262,7 +269,11 @@ function renderDashboard() {
       const option = document.createElement("option");
       option.value = status;
       option.textContent = status;
-      if (booking.status === status) option.selected = true;
+
+      if (booking.status === status) {
+        option.selected = true;
+      }
+
       statusSelect.appendChild(option);
     });
 
@@ -287,6 +298,7 @@ function renderDashboard() {
 }
 
 /* UPDATE BOOKING STATUS */
+
 function updateBookingStatus(id, newStatus) {
   bookings = bookings.map(booking =>
     booking.id === id
@@ -299,23 +311,32 @@ function updateBookingStatus(id, newStatus) {
 }
 
 /* DELETE BOOKING */
+
 function deleteBooking(id) {
   bookings = bookings.filter(booking => booking.id !== id);
+
   saveBookings();
   renderDashboard();
 }
 
 /* NAVIGATION */
+
 document.querySelectorAll('a[href^="#"]').forEach(link => {
   link.addEventListener("click", function (event) {
     const target = document.querySelector(this.getAttribute("href"));
 
     if (target) {
       event.preventDefault();
-      target.scrollIntoView({ behavior: "smooth" });
+
+      target.scrollIntoView({
+        behavior: "smooth"
+      });
     }
   });
 });
 
 /* INITIALIZE */
+
 console.log("GURI VISUALS website loaded successfully.");
+console.log("WhatsApp booking number configured.");
+
