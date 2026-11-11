@@ -1,342 +1,485 @@
 
-/* =========================================
-   GURI VISUALS
-   Booking Portal — JavaScript
-   Theme: Espresso Editorial
-========================================= */
+// ========================================
+// GURI VISUALS — SUPABASE CONFIGURATION
+// ========================================
 
-/* YOUR SETTINGS */
+const SUPABASE_URL = "https://fjiqogmrqtmlpiowbfmk.supabase.co";
+
+const SUPABASE_PUBLISHABLE_KEY =
+  "sb_publishable_Vhoxj6fA7yTJ8AGxekk-mg_-J7nU0Ud";
 
 const WHATSAPP_NUMBER = "916239750615";
-const ADMIN_PASSWORD = "Gurivisuals@2008";
 
-/* STORAGE */
+const supabaseClient = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_PUBLISHABLE_KEY
+);
 
-const STORAGE_KEY = "guriVisualsBookings";
+// ========================================
+// HELPER FUNCTIONS
+// ========================================
 
-let bookings = [];
+const getElement = (id) => document.getElementById(id);
 
-try {
-  bookings = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-} catch (error) {
-  bookings = [];
+function showMessage(message) {
+  alert(message);
 }
 
-/* HELPERS */
-
-function saveBookings() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(bookings));
+function escapeHTML(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#039;"
+  })[char]);
 }
 
-function getValue(form, name) {
-  return form.querySelector(`[name="${name}"]`)?.value?.trim() || "";
+function getFormValue(form, name) {
+  return form.elements.namedItem(name)?.value?.trim() || "";
 }
 
-function formatDate(date) {
-  if (!date) return "Not selected";
+// ========================================
+// BOOKING FORM — SAVE TO SUPABASE
+// ========================================
 
-  return new Date(date + "T00:00:00").toLocaleDateString("en-IN", {
-    day: "numeric",
-    month: "short",
-    year: "numeric"
-  });
-}
-
-/* BOOKING FORM */
-
-const bookingForm = document.getElementById("bookingForm");
+const bookingForm = getElement("bookingForm");
 
 if (bookingForm) {
-  bookingForm.addEventListener("submit", function (event) {
+  bookingForm.addEventListener("submit", async (event) => {
     event.preventDefault();
 
-    const name = getValue(this, "name");
-    const phone = getValue(this, "phone");
-    const service = getValue(this, "service");
-    const date = getValue(this, "date");
-    const time = getValue(this, "time");
-    const location = getValue(this, "location");
-    const budget = getValue(this, "budget");
-    const details = getValue(this, "details");
+    const submitButton = bookingForm.querySelector(
+      'button[type="submit"], input[type="submit"]'
+    );
 
-    if (!name || !phone || !service) {
-      alert("Please fill in all required fields.");
-      return;
-    }
-
-    const cleanPhone = phone.replace(/\D/g, "");
-
-    if (cleanPhone.length < 10 || cleanPhone.length > 13) {
-      alert("Please enter a valid WhatsApp number.");
-      return;
+    if (submitButton) {
+      submitButton.disabled = true;
+      submitButton.textContent = "Submitting...";
     }
 
     const booking = {
-      id: Date.now(),
-      name,
-      phone,
-      service,
-      date,
-      time,
-      location,
-      budget,
-      details,
-      status: "Pending",
-      createdAt: new Date().toLocaleString("en-IN")
+      customer_name: getFormValue(bookingForm, "name"),
+      whatsapp: getFormValue(bookingForm, "phone"),
+      service: getFormValue(bookingForm, "service"),
+      booking_date: getFormValue(bookingForm, "date") || null,
+      booking_time: getFormValue(bookingForm, "time"),
+      location: getFormValue(bookingForm, "location"),
+      budget: getFormValue(bookingForm, "budget"),
+      details: getFormValue(bookingForm, "details"),
+      status: "Pending"
     };
 
-    bookings.push(booking);
-    saveBookings();
+    try {
+      if (
+        !booking.customer_name ||
+        !booking.whatsapp ||
+        !booking.service
+      ) {
+        throw new Error("Please fill in all required fields.");
+      }
 
-    const message = `
+      const { error } = await supabaseClient
+        .from("bookings")
+        .insert([booking]);
+
+      if (error) throw error;
+
+      const message = `
 Hello GURI VISUALS!
 
-I want to book a shoot.
+New Booking Request
 
-Name: ${name}
-WhatsApp: ${phone}
-Service: ${service}
-Date: ${formatDate(date)}
-Time: ${time || "Not specified"}
-Location: ${location || "Not specified"}
-Budget: ${budget || "Not specified"}
+Name: ${booking.customer_name}
+WhatsApp: ${booking.whatsapp}
+Service: ${booking.service}
+Date: ${booking.booking_date || "Not specified"}
+Time: ${booking.booking_time || "Not specified"}
+Location: ${booking.location || "Not specified"}
+Budget: ${booking.budget || "Not specified"}
 
-Shoot Details:
-${details || "No additional details"}
+Details: ${booking.details || "No additional details"}
 
-Please contact me regarding availability and final pricing.
-    `.trim();
+Booking Status: Pending
+      `;
 
-    const whatsappURL =
-      `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`;
+      bookingForm.reset();
 
-    alert("Your booking request has been saved! WhatsApp will open next.");
-
-    window.open(whatsappURL, "_blank");
-
-    this.reset();
-  });
-}
-
-/* SERVICE CARD BUTTONS */
-
-document.querySelectorAll(".choose-service").forEach(button => {
-  button.addEventListener("click", function () {
-    const card = this.closest(".service-card");
-    const serviceName = card?.querySelector("h3")?.textContent?.trim();
-
-    const serviceSelect = document.querySelector(
-      '#bookingForm select[name="service"]'
-    );
-
-    if (serviceSelect && serviceName) {
-      const matchingOption = [...serviceSelect.options].find(option =>
-        option.textContent.toLowerCase().includes(serviceName.toLowerCase())
+      showMessage(
+        "Booking submitted successfully! Opening WhatsApp..."
       );
 
-      if (matchingOption) {
-        serviceSelect.value = matchingOption.value;
+      window.open(
+        `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(message)}`,
+        "_blank"
+      );
+
+    } catch (error) {
+      console.error("Booking error:", error);
+      showMessage(
+        "Booking could not be submitted: " + error.message
+      );
+    } finally {
+      if (submitButton) {
+        submitButton.disabled = false;
+        submitButton.textContent = "Submit Booking";
       }
     }
-
-    document.getElementById("booking")?.scrollIntoView({
-      behavior: "smooth"
-    });
-  });
-});
-
-/* ADMIN MODAL */
-
-const adminModal = document.getElementById("adminModal");
-const adminLogin = document.getElementById("adminLogin");
-const adminDashboard = document.getElementById("adminDashboard");
-
-function openAdmin() {
-  if (adminModal) {
-    adminModal.classList.add("show");
-  }
-}
-
-function closeAdmin() {
-  if (adminModal) {
-    adminModal.classList.remove("show");
-  }
-}
-
-document.querySelectorAll(".admin-link").forEach(button => {
-  button.addEventListener("click", openAdmin);
-});
-
-document.querySelectorAll(".modal-close").forEach(button => {
-  button.addEventListener("click", closeAdmin);
-});
-
-if (adminModal) {
-  adminModal.addEventListener("click", function (event) {
-    if (event.target === adminModal) {
-      closeAdmin();
-    }
   });
 }
 
-/* ADMIN LOGIN */
+// ========================================
+// CHOOSE SERVICE BUTTONS
+// ========================================
 
-const loginForm = document.getElementById("adminLoginForm");
+document.querySelectorAll(".choose-service").forEach((button) => {
+  button.addEventListener("click", () => {
+    const card = button.closest(".service-card");
+    const serviceName = card?.querySelector("h3")?.textContent?.trim();
 
-if (loginForm) {
-  loginForm.addEventListener("submit", function (event) {
-    event.preventDefault();
+    const serviceInput = bookingForm?.elements.namedItem("service");
 
-    const passwordInput = this.querySelector('input[type="password"]');
-    const enteredPassword = passwordInput?.value || "";
-
-    if (enteredPassword === ADMIN_PASSWORD) {
-      if (adminLogin) adminLogin.style.display = "none";
-      if (adminDashboard) adminDashboard.style.display = "block";
-
-      passwordInput.value = "";
-      renderDashboard();
-    } else {
-      alert("Incorrect password. Please try again.");
-    }
-  });
-}
-
-/* ADMIN LOGOUT */
-
-const logoutButton = document.getElementById("adminLogout");
-
-if (logoutButton) {
-  logoutButton.addEventListener("click", function () {
-    if (adminDashboard) adminDashboard.style.display = "none";
-    if (adminLogin) adminLogin.style.display = "block";
-  });
-}
-
-/* ADMIN DASHBOARD */
-
-function renderDashboard() {
-  const totalElement = document.getElementById("totalBookings");
-  const pendingElement = document.getElementById("pendingBookings");
-  const confirmedElement = document.getElementById("confirmedBookings");
-  const listElement = document.getElementById("bookingList");
-
-  const pending = bookings.filter(b => b.status === "Pending").length;
-  const confirmed = bookings.filter(b => b.status === "Confirmed").length;
-
-  if (totalElement) totalElement.textContent = bookings.length;
-  if (pendingElement) pendingElement.textContent = pending;
-  if (confirmedElement) confirmedElement.textContent = confirmed;
-
-  if (!listElement) return;
-
-  listElement.innerHTML = "";
-
-  if (bookings.length === 0) {
-    listElement.textContent = "No bookings received yet.";
-    return;
-  }
-
-  [...bookings].reverse().forEach(booking => {
-    const item = document.createElement("div");
-    item.className = "booking-item";
-
-    const heading = document.createElement("h4");
-    heading.textContent = booking.name;
-    item.appendChild(heading);
-
-    const fields = [
-      `Service: ${booking.service}`,
-      `Phone: ${booking.phone}`,
-      `Date: ${formatDate(booking.date)}`,
-      `Time: ${booking.time || "Not specified"}`,
-      `Location: ${booking.location || "Not specified"}`,
-      `Budget: ${booking.budget || "Not specified"}`,
-      `Details: ${booking.details || "None"}`,
-      `Received: ${booking.createdAt}`,
-      `Status: ${booking.status}`
-    ];
-
-    fields.forEach(field => {
-      const p = document.createElement("p");
-      p.textContent = field;
-      item.appendChild(p);
-    });
-
-    const statusSelect = document.createElement("select");
-
-    ["Pending", "Confirmed", "Completed", "Cancelled"].forEach(status => {
-      const option = document.createElement("option");
-      option.value = status;
-      option.textContent = status;
-
-      if (booking.status === status) {
-        option.selected = true;
-      }
-
-      statusSelect.appendChild(option);
-    });
-
-    statusSelect.addEventListener("change", function () {
-      updateBookingStatus(booking.id, this.value);
-    });
-
-    const deleteButton = document.createElement("button");
-    deleteButton.type = "button";
-    deleteButton.textContent = "Delete Booking";
-
-    deleteButton.addEventListener("click", function () {
-      if (confirm("Are you sure you want to delete this booking?")) {
-        deleteBooking(booking.id);
-      }
-    });
-
-    item.appendChild(statusSelect);
-    item.appendChild(deleteButton);
-    listElement.appendChild(item);
-  });
-}
-
-/* UPDATE BOOKING STATUS */
-
-function updateBookingStatus(id, newStatus) {
-  bookings = bookings.map(booking =>
-    booking.id === id
-      ? { ...booking, status: newStatus }
-      : booking
-  );
-
-  saveBookings();
-  renderDashboard();
-}
-
-/* DELETE BOOKING */
-
-function deleteBooking(id) {
-  bookings = bookings.filter(booking => booking.id !== id);
-
-  saveBookings();
-  renderDashboard();
-}
-
-/* NAVIGATION */
-
-document.querySelectorAll('a[href^="#"]').forEach(link => {
-  link.addEventListener("click", function (event) {
-    const target = document.querySelector(this.getAttribute("href"));
-
-    if (target) {
-      event.preventDefault();
-
-      target.scrollIntoView({
+    if (serviceInput && serviceName) {
+      serviceInput.value = serviceName;
+      getElement("booking")?.scrollIntoView({
         behavior: "smooth"
       });
     }
   });
 });
 
-/* INITIALIZE */
+// ========================================
+// ADMIN MODAL
+// ========================================
 
-console.log("GURI VISUALS website loaded successfully.");
-console.log("WhatsApp booking number configured.");
+const adminModal = getElement("adminModal");
+const adminLogin = getElement("adminLogin");
+const adminDashboard = getElement("adminDashboard");
+const adminLoginForm = getElement("adminLoginForm");
+
+document.querySelectorAll(".admin-link").forEach((link) => {
+  link.addEventListener("click", (event) => {
+    event.preventDefault();
+
+    if (adminModal) {
+      adminModal.style.display = "flex";
+    }
+  });
+});
+
+document.querySelectorAll(".modal-close").forEach((button) => {
+  button.addEventListener("click", () => {
+    if (adminModal) adminModal.style.display = "none";
+  });
+});
+
+// Add email field to the existing login form if missing.
+if (adminLoginForm) {
+  let emailInput = adminLoginForm.querySelector(
+    'input[name="email"]'
+  );
+
+  if (!emailInput) {
+    emailInput = document.createElement("input");
+    emailInput.type = "email";
+    emailInput.name = "email";
+    emailInput.placeholder = "Admin email address";
+    emailInput.required = true;
+    emailInput.autocomplete = "username";
+
+    adminLoginForm.prepend(emailInput);
+  }
+
+  const passwordInput = adminLoginForm.querySelector(
+    'input[type="password"]'
+  );
+
+  if (passwordInput) {
+    passwordInput.autocomplete = "current-password";
+  }
+}
+
+// ========================================
+// ADMIN LOGIN — SUPABASE AUTH
+// ========================================
+
+if (adminLoginForm) {
+  adminLoginForm.addEventListener("submit", async (event) => {
+    event.preventDefault();
+
+    const email = adminLoginForm.elements.namedItem("email")?.value.trim();
+    const password = adminLoginForm.querySelector(
+      'input[type="password"]'
+    )?.value;
+
+    if (!email || !password) {
+      showMessage("Enter your admin email and password.");
+      return;
+    }
+
+    const loginButton = adminLoginForm.querySelector(
+      'button[type="submit"], input[type="submit"]'
+    );
+
+    if (loginButton) {
+      loginButton.disabled = true;
+    }
+
+    try {
+      const { error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) throw error;
+
+      if (adminLogin) adminLogin.style.display = "none";
+      if (adminDashboard) adminDashboard.style.display = "block";
+
+      await loadBookings();
+
+    } catch (error) {
+      console.error("Admin login error:", error);
+      showMessage("Login failed: " + error.message);
+    } finally {
+      if (loginButton) {
+        loginButton.disabled = false;
+      }
+    }
+  });
+}
+
+// ========================================
+// LOAD BOOKINGS FROM DATABASE
+// ========================================
+
+async function loadBookings() {
+  const bookingList = getElement("bookingList");
+
+  if (bookingList) {
+    bookingList.innerHTML = "<p>Loading bookings...</p>";
+  }
+
+  try {
+    const { data, error } = await supabaseClient
+      .from("bookings")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (error) throw error;
+
+    const bookings = data || [];
+
+    updateCounters(bookings);
+    renderBookings(bookings);
+
+  } catch (error) {
+    console.error("Loading bookings error:", error);
+
+    if (bookingList) {
+      bookingList.innerHTML =
+        `<p>Could not load bookings: ${escapeHTML(error.message)}</p>`;
+    }
+  }
+}
+
+// ========================================
+// DASHBOARD COUNTERS
+// ========================================
+
+function updateCounters(bookings) {
+  const total = bookings.length;
+
+  const pending = bookings.filter(
+    (booking) => booking.status === "Pending"
+  ).length;
+
+  const confirmed = bookings.filter(
+    (booking) => booking.status === "Confirmed"
+  ).length;
+
+  if (getElement("totalBookings")) {
+    getElement("totalBookings").textContent = total;
+  }
+
+  if (getElement("pendingBookings")) {
+    getElement("pendingBookings").textContent = pending;
+  }
+
+  if (getElement("confirmedBookings")) {
+    getElement("confirmedBookings").textContent = confirmed;
+  }
+}
+
+// ========================================
+// DISPLAY BOOKINGS
+// ========================================
+
+function renderBookings(bookings) {
+  const bookingList = getElement("bookingList");
+
+  if (!bookingList) return;
+
+  if (!bookings.length) {
+    bookingList.innerHTML = "<p>No bookings received yet.</p>";
+    return;
+  }
+
+  bookingList.innerHTML = bookings.map((booking) => `
+    <div class="booking-item" data-id="${Number(booking.id)}">
+
+      <h3>${escapeHTML(booking.customer_name)}</h3>
+
+      <p><strong>WhatsApp:</strong>
+        ${escapeHTML(booking.whatsapp)}</p>
+
+      <p><strong>Service:</strong>
+        ${escapeHTML(booking.service)}</p>
+
+      <p><strong>Date:</strong>
+        ${escapeHTML(booking.booking_date || "Not specified")}</p>
+
+      <p><strong>Time:</strong>
+        ${escapeHTML(booking.booking_time || "Not specified")}</p>
+
+      <p><strong>Location:</strong>
+        ${escapeHTML(booking.location || "Not specified")}</p>
+
+      <p><strong>Budget:</strong>
+        ${escapeHTML(booking.budget || "Not specified")}</p>
+
+      <p><strong>Details:</strong>
+        ${escapeHTML(booking.details || "None")}</p>
+
+      <p><strong>Status:</strong>
+        ${escapeHTML(booking.status)}</p>
+
+      <select class="booking-status">
+        <option value="Pending"
+          ${booking.status === "Pending" ? "selected" : ""}>
+          Pending
+        </option>
+
+        <option value="Confirmed"
+          ${booking.status === "Confirmed" ? "selected" : ""}>
+          Confirmed
+        </option>
+
+        <option value="Completed"
+          ${booking.status === "Completed" ? "selected" : ""}>
+          Completed
+        </option>
+
+        <option value="Cancelled"
+          ${booking.status === "Cancelled" ? "selected" : ""}>
+          Cancelled
+        </option>
+      </select>
+
+      <button type="button" class="update-booking">
+        Update Status
+      </button>
+
+      <button type="button" class="delete-booking">
+        Delete Booking
+      </button>
+
+    </div>
+  `).join("");
+
+  // Update status
+  bookingList.querySelectorAll(".update-booking").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const item = button.closest(".booking-item");
+      const id = Number(item.dataset.id);
+      const status = item.querySelector(".booking-status").value;
+
+      const { error } = await supabaseClient
+        .from("bookings")
+        .update({ status })
+        .eq("id", id);
+
+      if (error) {
+        showMessage("Status update failed: " + error.message);
+        return;
+      }
+
+      showMessage("Booking status updated!");
+      await loadBookings();
+    });
+  });
+
+  // Delete booking
+  bookingList.querySelectorAll(".delete-booking").forEach((button) => {
+    button.addEventListener("click", async () => {
+      const item = button.closest(".booking-item");
+      const id = Number(item.dataset.id);
+
+      if (!confirm("Are you sure you want to delete this booking?")) {
+        return;
+      }
+
+      const { error } = await supabaseClient
+        .from("bookings")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        showMessage("Delete failed: " + error.message);
+        return;
+      }
+
+      showMessage("Booking deleted successfully!");
+      await loadBookings();
+    });
+  });
+}
+
+// ========================================
+// ADMIN LOGOUT
+// ========================================
+
+const adminLogout = getElement("adminLogout");
+
+if (adminLogout) {
+  adminLogout.addEventListener("click", async () => {
+    const { error } = await supabaseClient.auth.signOut();
+
+    if (error) {
+      showMessage("Logout failed: " + error.message);
+      return;
+    }
+
+    if (adminDashboard) adminDashboard.style.display = "none";
+    if (adminLogin) adminLogin.style.display = "block";
+
+    if (adminModal) adminModal.style.display = "none";
+
+    adminLoginForm?.reset();
+
+    showMessage("Admin logged out successfully.");
+  });
+}
+
+// ========================================
+// RESTORE ADMIN SESSION
+// ========================================
+
+async function checkAdminSession() {
+  const { data } = await supabaseClient.auth.getSession();
+
+  if (data.session) {
+    if (adminLogin) adminLogin.style.display = "none";
+    if (adminDashboard) adminDashboard.style.display = "block";
+
+    if (adminModal) adminModal.style.display = "flex";
+
+    await loadBookings();
+  }
+}
+
+checkAdminSession();
+
+console.log("GURI VISUALS — Supabase connected.");
+
 
